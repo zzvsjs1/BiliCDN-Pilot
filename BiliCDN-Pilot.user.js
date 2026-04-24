@@ -4,7 +4,7 @@
 // @name:zh-TW   BiliCDN Pilot - 智慧 CDN 優選
 // @name:ja      BiliCDN Pilot - CDN自動選択
 // @name:en      BiliCDN Pilot
-// @namespace    https://github.com/placeholder/bilicdn-pilot
+// @namespace    https://github.com/zzvsjs1/BiliCDN-Pilot/blob/main/BiliCDN-Pilot.user.js
 // @copyright    Free For Personal Use
 // @license      No License
 // @version      0.4.0
@@ -13,7 +13,7 @@
 // @description:en    Learn, benchmark, and apply Bilibili video CDN hosts with safer allowlists and Worker coverage
 // @description:zh-TW 自動學習、測速並套用 Bilibili 影片 CDN, 支援白名單與 Worker 內替換
 // @description:ja    Bilibili動画CDNを学習・測定・適用し, ホワイトリストとWorker内置換に対応
-// @author       PlaceholderDev
+// @author       zzvsjs1
 // @run-at       document-start
 // @match        https://www.bilibili.com/video/*
 // @match        https://www.bilibili.com/bangumi/play/*

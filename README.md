@@ -106,4 +106,4 @@ Worker URL hook wrapped: ...
 
 ## License
 
-No license is currently declared in the userscript metadata. Add a repository license before publishing if you want others to reuse or redistribute the code.
+MIT License
