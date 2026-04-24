@@ -7,7 +7,7 @@
 // @namespace    https://github.com/zzvsjs1/BiliCDN-Pilot/blob/main/BiliCDN-Pilot.user.js
 // @copyright    Free For Personal Use
 // @license      No License
-// @version      0.4.1
+// @version      0.4.2
 // @description       Learn, benchmark, and apply Bilibili video CDN hosts with safer allowlists and Worker coverage
 // @description:zh-CN 自动学习、测速并应用哔哩哔哩视频 CDN, 支持白名单与 Worker 内替换
 // @description:en    Learn, benchmark, and apply Bilibili video CDN hosts with safer allowlists and Worker coverage
@@ -42,6 +42,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
+// @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @connect      bilivideo.com
 // @connect      *.bilivideo.com
@@ -71,31 +72,46 @@ var SeedCDNRegions = ['海外', '深圳', '香港'];
 
 // Install CDN replacement hooks inside player Workers.
 var EnableWorkerHookDefault = true;
+
+// Block Bilibili page scripts from appending source/copyright text when copying article text.
+// This only stops later page-level copy handlers; it does not replace the browser's normal clipboard behavior.
+var EnableCopyCleanPatchDefault = true;
 // ======================= End user configuration ============================
 
 (function () {
   'use strict';
 
-    // Prevent pages from appending source URLs or copyright text on copy.
-    (function enableCopyCleanPatch() {
-        const stopCopyHijack = (e) => {
-            // Keep the browser's default copy behavior, but block later page scripts from rewriting clipboard data.
-            e.stopImmediatePropagation();
-        };
-
-        // Use the capture phase to run before most page handlers.
-        window.addEventListener('copy', stopCopyHijack, true);
-        document.addEventListener('copy', stopCopyHijack, true);
-
-        // Some pages attach listeners after DOMContentLoaded, so register once more for stability.
-        document.addEventListener('DOMContentLoaded', () => {
-            window.addEventListener('copy', stopCopyHijack, true);
-            document.addEventListener('copy', stopCopyHijack, true);
-        }, { once: true });
-    })();
-
   const PluginName = 'BiliCDNPilot';
   const log = console.log.bind(console, `[${PluginName}]:`);
+  const CopyCleanPatchStorageKey = 'EnableCopyCleanPatch';
+
+  let enableCopyCleanPatch = GM_getValue(CopyCleanPatchStorageKey);
+  if (typeof enableCopyCleanPatch !== 'boolean') enableCopyCleanPatch = !!EnableCopyCleanPatchDefault;
+
+  // Prevent pages from appending source URLs or copyright text on copy.
+  // Bilibili article pages commonly listen for copy and rewrite clipboard data with source text.
+  // Running first in the capture phase lets normal browser copy continue while blocking later page handlers.
+  const stopCopyHijack = (event) => {
+    if (!enableCopyCleanPatch) return;
+    event.stopImmediatePropagation();
+  };
+
+  let copyCleanPatchInstalled = false;
+  function installCopyCleanPatch() {
+    if (copyCleanPatchInstalled) return;
+    copyCleanPatchInstalled = true;
+
+    window.addEventListener('copy', stopCopyHijack, true);
+    document.addEventListener('copy', stopCopyHijack, true);
+
+    // Re-register after DOMContentLoaded for pages that replace document-level listeners during boot.
+    document.addEventListener('DOMContentLoaded', () => {
+      window.addEventListener('copy', stopCopyHijack, true);
+      document.addEventListener('copy', stopCopyHijack, true);
+    }, { once: true });
+  }
+
+  installCopyCleanPatch();
 
   const Language = (() => {
     const lang = (navigator.language || navigator.browserLanguage || (navigator.languages || ['en'])[0]).substring(0, 2);
@@ -121,6 +137,12 @@ var EnableWorkerHookDefault = true;
       en: 'Install Worker hooks only on player pages to catch media requests inside Workers',
       ja: 'プレイヤーページでのみWorker内のメディアリクエストを捕捉します'
     },
+    copyClean: { zh: '复制清理', en: 'Copy cleanup', ja: 'コピー整形抑止' },
+    copyCleanTip: {
+      zh: '阻止页面脚本在复制文本时追加来源或版权信息',
+      en: 'Stop page scripts from appending source or copyright text when copying',
+      ja: 'コピー時にページスクリプトが出典や著作権文を追加するのを防ぎます'
+    },
     enabled: { zh: '已启用', en: 'Enabled', ja: '有効化' },
     disabled: { zh: '已禁用', en: 'Disabled', ja: '無効化' },
     blockedExt: {
@@ -129,6 +151,18 @@ var EnableWorkerHookDefault = true;
       ja: '外部CDNはブロックされました, *.bilivideo.com または *.akamaized.net のみ許可'
     }
   };
+
+  function registerUserscriptMenuCommands() {
+    if (typeof GM_registerMenuCommand !== 'function') return;
+    GM_registerMenuCommand(`${I18N.copyClean[Language]}: ${enableCopyCleanPatch ? I18N.enabled[Language] : I18N.disabled[Language]}`, () => {
+      enableCopyCleanPatch = !enableCopyCleanPatch;
+      GM_setValue(CopyCleanPatchStorageKey, enableCopyCleanPatch);
+      installCopyCleanPatch();
+      log(`${I18N.copyClean[Language]} ${enableCopyCleanPatch ? I18N.enabled[Language] : I18N.disabled[Language]}: ${I18N.copyCleanTip[Language]}`);
+    });
+  }
+
+  registerUserscriptMenuCommands();
 
   // Load persisted state
   let disabled = !!GM_getValue('disabled');

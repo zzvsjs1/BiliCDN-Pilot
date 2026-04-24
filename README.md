@@ -14,6 +14,7 @@ The script targets Bilibili video playback pages, intercepts playurl data, colle
 - Rewrites media URLs in playinfo objects, `fetch`, `XMLHttpRequest`, and selected player Workers.
 - Adds player settings toggles for enabling/disabling CDN replacement, external CDN hosts, auto benchmarking, and Worker hooks.
 - Keeps manual `CustomCDN` overrides ahead of automatic selection.
+- Blocks Bilibili article pages from appending source or copyright text to copied selections, with a userscript menu toggle.
 
 ## Install
 
@@ -38,6 +39,7 @@ var AutoBestCDNDefault = true;
 var CDNBenchmarkBytes = 262144;
 var SeedCDNRegions = ['海外', '深圳', '香港'];
 var EnableWorkerHookDefault = true;
+var EnableCopyCleanPatchDefault = true;
 ```
 
 `CustomCDN` manually pins a CDN host or URL. When it is set, automatic benchmarking may still learn candidates, but it will not override your manual choice.
@@ -51,6 +53,10 @@ var EnableWorkerHookDefault = true;
 `SeedCDNRegions` selects built-in CDN candidate regions for benchmarking. Add or remove region names from the array to change the seed pool.
 
 `EnableWorkerHookDefault` enables Worker-side request replacement on supported player pages.
+
+`EnableCopyCleanPatchDefault` controls the copy cleanup patch. When enabled, the script registers an early `copy` listener that lets the browser's normal copy behavior continue but stops later Bilibili page handlers from adding source links or copyright text. You can toggle this at runtime from the Tampermonkey userscript menu entry named `Copy cleanup` / `复制清理`.
+
+The player settings panel only exists on player pages, so the copy cleanup switch lives in the userscript manager menu and works on article pages too.
 
 ## How Selection Works
 
@@ -95,6 +101,7 @@ Worker URL hook wrapped: ...
 - The default allowlist only accepts `*.bilivideo.com` and `*.akamaized.net`.
 - Worker hooks are installed only on player-like pages and only rewrite outgoing media request URLs.
 - Worker response bodies are not read or transformed, keeping overhead lower.
+- Copy cleanup does not write clipboard contents itself. It only stops later page `copy` handlers, so default browser copying remains in control.
 
 ## Limitations
 
