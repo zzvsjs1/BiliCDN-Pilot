@@ -7,7 +7,7 @@
 // @namespace    https://github.com/zzvsjs1/BiliCDN-Pilot/blob/main/BiliCDN-Pilot.user.js
 // @copyright    Free For Personal Use
 // @license      No License
-// @version      0.4.0
+// @version      0.4.1
 // @description       Learn, benchmark, and apply Bilibili video CDN hosts with safer allowlists and Worker coverage
 // @description:zh-CN 自动学习、测速并应用哔哩哔哩视频 CDN, 支持白名单与 Worker 内替换
 // @description:en    Learn, benchmark, and apply Bilibili video CDN hosts with safer allowlists and Worker coverage
@@ -421,7 +421,7 @@ var EnableWorkerHookDefault = true;
   }
 
   function scheduleCDNBenchmark(playInfo) {
-    if (disabled || !autoBestCDN || benchmarkRunning) return;
+    if (!shouldApplyCdnReplacement() || !autoBestCDN || benchmarkRunning) return;
 
     const urls = collectCDNUrlsFromPlayInfo(playInfo);
     const discoveredHosts = collectCDNHostsFromUrls(urls);
@@ -509,6 +509,16 @@ var EnableWorkerHookDefault = true;
   const MediaDomainRE = /(?:^|\.)(?:(?:bilivideo|acgvideo)\.(?:com|cn)|akamaized\.net)$/i;
   const IgnoreMediaHostRE = /^(?:bvc|data|pbp|api|api\w+)\./i;
 
+  function isLiveContext() {
+    return location.host === 'live.bilibili.com';
+  }
+
+  function shouldApplyCdnReplacement() {
+    // Live HLS URLs are generated for Bilibili's selected url_info host/cdn pair.
+    // Blindly swapping the final m3u8 host often invalidates that pairing and causes 403 retry loops.
+    return !disabled && !isLiveContext();
+  }
+
   function getReplacementHost() {
     try { return new URL(Replacement).host; } catch { return ''; }
   }
@@ -536,7 +546,7 @@ var EnableWorkerHookDefault = true;
 
   function replaceCdnUrl(url) {
     if (typeof url !== 'string') return url;
-    if (disabled || !hasMediaDomain(url) || isIgnoredMediaHost(url)) return url;
+    if (!shouldApplyCdnReplacement() || !hasMediaDomain(url) || isIgnoredMediaHost(url)) return url;
     if (url.startsWith('http://') || url.startsWith('https://')) return url.replace(/^https?:\/\/[^/]+\//i, Replacement);
     if (url.startsWith('//')) return url.replace(/^\/\/[^/]+\//, Replacement.replace(/^https?:/i, ''));
     if (/^[^/\s]+\//.test(url)) return url.replace(/^[^/\s]+\//, `${getReplacementHost()}/`);
@@ -545,7 +555,7 @@ var EnableWorkerHookDefault = true;
 
   function replaceCdnHostValue(host) {
     if (typeof host !== 'string') return host;
-    if (disabled || !hasMediaDomain(host) || isIgnoredMediaHost(host)) return host;
+    if (!shouldApplyCdnReplacement() || !hasMediaDomain(host) || isIgnoredMediaHost(host)) return host;
     if (host.startsWith('http://') || host.startsWith('https://')) return Replacement.replace(/\/$/, '');
     if (host.startsWith('//')) return Replacement.replace(/^https?:/i, '').replace(/\/$/, '');
     if (/^[^/\s]+$/.test(host)) return getReplacementHost();
